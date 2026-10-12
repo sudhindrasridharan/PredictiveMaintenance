@@ -1,9 +1,0 @@
-artifact_location: /content/PredictiveMaintenance/mlruns/795005879202472247
-creation_time: 1791822248174
-effective_trace_archival_retention: null
-experiment_id: '795005879202472247'
-last_update_time: 1791822248174
-lifecycle_stage: active
-name: Predictive_Maintenance
-trace_location: null
-workspace: default
