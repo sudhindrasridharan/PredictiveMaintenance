@@ -1,0 +1,14 @@
+artifact_uri: /content/PredictiveMaintenance/mlruns/795005879202472247/bed2b7c6ad394b36a1ebac6a97f3bf6f/artifacts
+end_time: 1791822379875
+entry_point_name: ''
+experiment_id: '795005879202472247'
+lifecycle_stage: active
+run_id: bed2b7c6ad394b36a1ebac6a97f3bf6f
+run_name: Best_Model_Final_Evaluation
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1791822374277
+status: 3
+tags: []
+user_id: root
