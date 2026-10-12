@@ -1,0 +1,25 @@
+{
+    "best_model": "GradientBoosting",
+    "selection_metric": "f1_macro",
+    "best_cv_macro_f1": 0.6133998929830831,
+    "test_accuracy": 0.6647043767596621,
+    "test_precision_macro": 0.6330448681112397,
+    "test_recall_macro": 0.6015524218264103,
+    "test_f1_macro": 0.6012074954917218,
+    "test_roc_auc": 0.7034893431090387,
+    "training_rows": 15628,
+    "testing_rows": 3907,
+    "features": [
+        "Engine rpm",
+        "Lub oil pressure",
+        "Fuel pressure",
+        "Coolant pressure",
+        "lub oil temp",
+        "Coolant temp"
+    ],
+    "best_parameters": {
+        "learning_rate": 0.1,
+        "max_depth": 3,
+        "n_estimators": 100
+    }
+}
