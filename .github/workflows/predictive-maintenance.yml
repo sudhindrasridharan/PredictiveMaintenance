@@ -1,0 +1,260 @@
+
+name: Predictive Maintenance Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "data/**"
+      - ".github/workflows/predictive-maintenance.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  data-preparation:
+    name: Clean Data and Create Train-Test Splits
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas==2.2.2 scikit-learn
+
+      - name: Load and clean dataset
+        run: |
+          python - <<'PY'
+          import os
+          import pandas as pd
+
+          DATA_PATH = "data/engine_data.csv"
+          OUTPUT_DIR = "prepared_data"
+
+          if not os.path.exists(DATA_PATH):
+              raise FileNotFoundError(
+                  f"Dataset not found: {DATA_PATH}. "
+                  "Ensure engine_data.csv is committed to data/."
+              )
+
+          df = pd.read_csv(DATA_PATH)
+
+          print("Original dataset shape:", df.shape)
+          print("Original columns:", df.columns.tolist())
+
+          required_columns = [
+              "Engine rpm",
+              "Lub oil pressure",
+              "Fuel pressure",
+              "Coolant pressure",
+              "lub oil temp",
+              "Coolant temp",
+              "Engine Condition",
+          ]
+
+          missing_columns = [
+              col for col in required_columns if col not in df.columns
+          ]
+
+          if missing_columns:
+              raise ValueError(
+                  f"Missing required columns: {missing_columns}"
+              )
+
+          # Retain only the six sensor features and target.
+          df = df[required_columns].copy()
+
+          # Convert all expected columns to numeric values.
+          for col in required_columns:
+              df[col] = pd.to_numeric(df[col], errors="coerce")
+
+          # Remove records without a valid target.
+          df = df.dropna(subset=["Engine Condition"])
+
+          # Keep only the expected binary target labels.
+          df = df[df["Engine Condition"].isin([0, 1])]
+
+          # Remove duplicate records.
+          df = df.drop_duplicates().reset_index(drop=True)
+
+          feature_columns = [
+              "Engine rpm",
+              "Lub oil pressure",
+              "Fuel pressure",
+              "Coolant pressure",
+              "lub oil temp",
+              "Coolant temp",
+          ]
+
+          # Fill missing sensor readings using feature medians.
+          # Medians are calculated here for this preparation step.
+          for col in feature_columns:
+              median_value = df[col].median()
+
+              if pd.isna(median_value):
+                  raise ValueError(
+                      f"Cannot impute {col}: no valid numeric values."
+                  )
+
+              df[col] = df[col].fillna(median_value)
+
+          df["Engine Condition"] = df["Engine Condition"].astype(int)
+
+          if df.empty:
+              raise ValueError("No valid records remain after cleaning.")
+
+          os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+          cleaned_path = os.path.join(
+              OUTPUT_DIR, "cleaned_data.csv"
+          )
+          df.to_csv(cleaned_path, index=False)
+
+          print("Cleaned dataset shape:", df.shape)
+          print("Missing values after cleaning:", int(df.isna().sum().sum()))
+          print("Duplicate rows after cleaning:", int(df.duplicated().sum()))
+          print("Target distribution:")
+          print(df["Engine Condition"].value_counts().sort_index())
+          print("Saved:", cleaned_path)
+          PY
+
+      - name: Split and save training and testing data
+        run: |
+          python - <<'PY'
+          import os
+          import pandas as pd
+          from sklearn.model_selection import train_test_split
+
+          OUTPUT_DIR = "prepared_data"
+          df = pd.read_csv(
+              os.path.join(OUTPUT_DIR, "cleaned_data.csv")
+          )
+
+          target_column = "Engine Condition"
+          X = df.drop(columns=[target_column])
+          y = df[target_column]
+
+          # Stratification preserves the target class proportions.
+          X_train, X_test, y_train, y_test = train_test_split(
+              X,
+              y,
+              test_size=0.20,
+              random_state=42,
+              stratify=y
+          )
+
+          X_train.to_csv(
+              os.path.join(OUTPUT_DIR, "X_train.csv"), index=False
+          )
+          X_test.to_csv(
+              os.path.join(OUTPUT_DIR, "X_test.csv"), index=False
+          )
+          y_train.to_frame().to_csv(
+              os.path.join(OUTPUT_DIR, "y_train.csv"), index=False
+          )
+          y_test.to_frame().to_csv(
+              os.path.join(OUTPUT_DIR, "y_test.csv"), index=False
+          )
+
+          print("Training features:", X_train.shape)
+          print("Testing features:", X_test.shape)
+          print("Training target:", y_train.shape)
+          print("Testing target:", y_test.shape)
+          print("Training target distribution:")
+          print(y_train.value_counts(normalize=True).sort_index())
+          print("Testing target distribution:")
+          print(y_test.value_counts(normalize=True).sort_index())
+          print("All train-test files saved successfully.")
+          PY
+
+      - name: Upload prepared data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-data
+          path: |
+            prepared_data/cleaned_data.csv
+            prepared_data/X_train.csv
+            prepared_data/X_test.csv
+            prepared_data/y_train.csv
+            prepared_data/y_test.csv
+          if-no-files-found: error
+          retention-days: 7
+
+  verify-prepared-data:
+    name: Download and Verify Prepared Data
+    needs: data-preparation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download prepared data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-data
+          path: prepared_data
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install pandas==2.2.2
+
+      - name: Verify artifact files
+        run: |
+          python - <<'PY'
+          import os
+          import pandas as pd
+
+          required_files = [
+              "cleaned_data.csv",
+              "X_train.csv",
+              "X_test.csv",
+              "y_train.csv",
+              "y_test.csv",
+          ]
+
+          for filename in required_files:
+              path = os.path.join("prepared_data", filename)
+
+              if not os.path.exists(path):
+                  raise FileNotFoundError(
+                      f"Artifact file is missing: {path}"
+                  )
+
+              print(f"Verified: {path}")
+
+          X_train = pd.read_csv("prepared_data/X_train.csv")
+          X_test = pd.read_csv("prepared_data/X_test.csv")
+          y_train = pd.read_csv("prepared_data/y_train.csv")
+          y_test = pd.read_csv("prepared_data/y_test.csv")
+
+          assert len(X_train) == len(y_train), (
+              "Training features and target row counts do not match."
+          )
+          assert len(X_test) == len(y_test), (
+              "Testing features and target row counts do not match."
+          )
+          assert list(X_train.columns) == list(X_test.columns), (
+              "Training and testing feature columns do not match."
+          )
+
+          print("\nArtifact verification successful.")
+          print("Training feature shape:", X_train.shape)
+          print("Testing feature shape:", X_test.shape)
+          print("Training target shape:", y_train.shape)
+          print("Testing target shape:", y_test.shape)
+          PY
