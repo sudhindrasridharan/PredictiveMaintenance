@@ -22,6 +22,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        
+      - name: Debug workflow and cache settings
+        run: |
+          echo "Workflow file: $GITHUB_WORKFLOW"
+          echo "Branch: $GITHUB_REF"
+          echo "Commit: $GITHUB_SHA"
+
+          echo "Searching workflow files for pip caching..."
+          grep -n -E 'cache:[[:space:]]*["'\'']?pip|cache-dependency-path' \
+            .github/workflows/*.yml .github/workflows/*.yaml || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
