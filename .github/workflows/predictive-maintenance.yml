@@ -306,7 +306,8 @@ jobs:
             reports/cv_results.csv
             reports/test_metrics.json
             reports/confusion_matrix.csv
-            mlruns/
+            mlflow.db
+            mlartifacts/
           if-no-files-found: error
           retention-days: 7
 
