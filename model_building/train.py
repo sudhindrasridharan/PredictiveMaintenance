@@ -214,9 +214,10 @@ with mlflow.start_run(run_name="RandomForest_GridSearch") as parent_run:
     mlflow.log_artifact(str(model_path))
 
     mlflow.sklearn.log_model(
-        best_model,
-        artifact_path="random_forest_model",
-    )
+    sk_model=best_model,
+    artifact_path="random_forest_model",
+    skops_trusted_types=["sklearn.tree._tree.Tree"]
+)
 
     print("\nBest parameters:", search.best_params_)
     print("Best cross-validation macro F1:", search.best_score_)
