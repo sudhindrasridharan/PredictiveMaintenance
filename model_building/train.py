@@ -75,7 +75,12 @@ cv = StratifiedKFold(
 # --------------------------------------------------
 # 4. Configure MLflow
 # --------------------------------------------------
-mlflow.set_tracking_uri("file:./mlruns")
+# mlflow.set_tracking_uri("file:./mlruns")
+# mlflow.set_experiment("PredictiveMaintenance-RandomForest")
+
+# Configure MLflow to use SQLite tracking
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+
 mlflow.set_experiment("PredictiveMaintenance-RandomForest")
 
 # --------------------------------------------------
