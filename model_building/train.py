@@ -213,11 +213,10 @@ with mlflow.start_run(run_name="RandomForest_GridSearch") as parent_run:
 
     mlflow.log_artifact(str(model_path))
 
-    mlflow.sklearn.log_model(
-    sk_model=best_model,
-    artifact_path="random_forest_model",
-    serialization_format="cloudpickle"
-)
+    # Log the model as a regular MLflow artifact.
+    # The deployable model is already saved using joblib.dump().
+    # mlflow.log_artifact(str(model_path), artifact_path="model")
+
 
     print("\nBest parameters:", search.best_params_)
     print("Best cross-validation macro F1:", search.best_score_)
