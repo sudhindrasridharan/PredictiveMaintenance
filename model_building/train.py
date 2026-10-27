@@ -216,7 +216,7 @@ with mlflow.start_run(run_name="RandomForest_GridSearch") as parent_run:
     mlflow.sklearn.log_model(
     sk_model=best_model,
     artifact_path="random_forest_model",
-    skops_trusted_types=["sklearn.tree._tree.Tree"]
+    serialization_format="cloudpickle"
 )
 
     print("\nBest parameters:", search.best_params_)
