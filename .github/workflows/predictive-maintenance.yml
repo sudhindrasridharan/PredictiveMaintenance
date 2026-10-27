@@ -267,3 +267,83 @@ jobs:
           print("Training target shape:", y_train.shape)
           print("Testing target shape:", y_test.shape)
           PY
+
+  model-building:
+    name: Tune, Evaluate and Save Best Model
+    needs: data-preparation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas==2.2.2 scikit-learn mlflow joblib
+
+      - name: Download prepared data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: prepared-data
+          path: prepared_data
+
+      - name: Train, tune and evaluate model
+        run: |
+          python model_building/train.py
+
+      - name: Upload best model and experiment results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model-and-results
+          path: |
+            deployment/best_model.pkl
+            reports/cv_results.csv
+            reports/test_metrics.json
+            reports/confusion_matrix.csv
+            mlruns/
+          if-no-files-found: error
+          retention-days: 7
+
+  update-repository:
+    name: Commit Best Model to Repository
+    needs: model-building
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download trained model artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model-and-results
+          path: .
+
+      - name: Commit best model
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ ! -f deployment/best_model.pkl ]; then
+            echo "Error: best model file was not found."
+            exit 1
+          fi
+
+          git add deployment/best_model.pkl
+
+          if git diff --cached --quiet; then
+            echo "No model changes to commit."
+          else
+            git commit -m "Update PredictiveMaintenance best model"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
